@@ -129,7 +129,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
             // Find map landmark that is closest to predicted location
             LandmarkObs predicted_obs;
             double distance = dist(particles[i].x, particles[i].y, map_landmarks.landmark_list[k].x_f, map_landmarks.landmark_list[k].y_f);
-            if (distance <= sensor_range) { 
+            if (distance <= sensor_range + std_landmark[0] + std_landmark[1]) { 
                 predicted_obs.x = map_landmarks.landmark_list[k].x_f;
                 predicted_obs.y = map_landmarks.landmark_list[k].y_f;
                 predicted_obs.id = map_landmarks.landmark_list[k].id_i;
@@ -172,8 +172,8 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
             double sigma_y = std_landmark[1];
             double rho = 0.0;
             int index_landmark = particles[i].associations[j];
-            double mu_x = map_landmarks.landmark_list[index_landmark].x_f;
-            double mu_y = map_landmarks.landmark_list[index_landmark].y_f;
+            double mu_x = map_landmarks.landmark_list[index_landmark-1].x_f;
+            double mu_y = map_landmarks.landmark_list[index_landmark-1].y_f;
             particles[i].weight *= 0.5/(M_PI*sigma_x*sigma_y*(1.0-rho*rho))*exp(-0.5/(1.0-rho*rho)*(pow((x-mu_x)/sigma_x,2) + pow((y-mu_y)/sigma_y,2) - 2.0*rho*(x-mu_x)*(y-mu_y)/(sigma_x*sigma_y)));
         }
     }
