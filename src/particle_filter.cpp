@@ -36,6 +36,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
   std::normal_distribution<double> dist_y(y, std[1]);
   std::normal_distribution<double> dist_theta(theta, std[2]);
 
+  particles.resize(num_particles);
   for (int i = 0; i < num_particles; ++i) {
     double sample_x, sample_y, sample_theta;
     
@@ -50,7 +51,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
     p.theta = sample_theta;
     p.weight = 1.0;
 
-    particles.push_back(p);
+    particles[i] = p;
   }
 
 }
@@ -123,7 +124,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
    */
     for(int i=0; i < num_particles; i++) {
         vector<LandmarkObs> predicted;
-        vector<LandmarkObs> transformed(observations.size());
+        vector<LandmarkObs> transformed;
         for(long unsigned int k=0; k < map_landmarks.landmark_list.size(); k++) {
             // Find map landmark that is closest to predicted location
             LandmarkObs predicted_obs;
@@ -131,8 +132,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
             if (distance <= sensor_range) { 
                 predicted_obs.x = map_landmarks.landmark_list[k].x_f;
                 predicted_obs.y = map_landmarks.landmark_list[k].y_f;
-                //predicted_obs.id = map_landmarks.landmark_list[k].id_i;
-                predicted_obs.id = k; // Assign landmark index instead of id since that can be used to access
+                predicted_obs.id = map_landmarks.landmark_list[k].id_i;
                 predicted.push_back(predicted_obs);
             }
         }
@@ -140,7 +140,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         for(long unsigned int j=0; j < observations.size(); j++) {
             double x_transformed = 0.0;
             double y_transformed = 0.0;
-            double angle = particles[i].theta;
+            double angle = -particles[i].theta;
             LandmarkObs transformed_obs;
 
             x_transformed = observations[j].x*cos(angle) + observations[j].y*sin(angle) + particles[i].x;
