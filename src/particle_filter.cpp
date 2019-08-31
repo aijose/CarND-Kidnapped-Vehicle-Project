@@ -36,6 +36,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
   std::normal_distribution<double> dist_y(y, std[1]);
   std::normal_distribution<double> dist_theta(theta, std[2]);
 
+  // Create particles around the GPS location using a Gaussian distribution
   particles.resize(num_particles);
   for (int i = 0; i < num_particles; ++i) {
     double sample_x, sample_y, sample_theta;
@@ -66,6 +67,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
    *  http://www.cplusplus.com/reference/random/default_random_engine/
    */
     std::default_random_engine gen;
+    // Move particles (predict) with gaussian noise
     for(int i=0; i < num_particles; i++) {
         double delta_theta = delta_t*yaw_rate;
         if(abs(yaw_rate) > 0.00001) {
@@ -96,6 +98,7 @@ void ParticleFilter::dataAssociation(vector<LandmarkObs> predicted,
         double min_dist = 100000000.0;
         double x_obs = observations[i].x;
         double y_obs = observations[i].y;
+        // Find predicted measurement that is closest to each observed measurement
         for (long unsigned int j=0; j < predicted.size(); j++) {
             double distance = dist(predicted[j].x, predicted[j].y, x_obs, y_obs);
             if (distance < min_dist) {
@@ -129,6 +132,9 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
             // Find map landmark that is closest to predicted location
             LandmarkObs predicted_obs;
             double distance = dist(particles[i].x, particles[i].y, map_landmarks.landmark_list[k].x_f, map_landmarks.landmark_list[k].y_f);
+
+            // Only include landmarks within sensor range and approximately one standard deviation
+            // to save computational time
             if (distance <= sensor_range + std_landmark[0] + std_landmark[1]) { 
                 predicted_obs.x = map_landmarks.landmark_list[k].x_f;
                 predicted_obs.y = map_landmarks.landmark_list[k].y_f;
@@ -137,23 +143,27 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
             }
         }
 
+        // Transform observation from particle coordinates to global coordinates
         for(long unsigned int j=0; j < observations.size(); j++) {
-            double x_transformed = 0.0;
-            double y_transformed = 0.0;
+            double x_transformed;
+            double y_transformed;
             double angle = -particles[i].theta;
             LandmarkObs transformed_obs;
 
+            // Apply rotation and translation
             x_transformed = observations[j].x*cos(angle) + observations[j].y*sin(angle) + particles[i].x;
             y_transformed = -observations[j].x*sin(angle) + observations[j].y*cos(angle) + particles[i].y;
             transformed_obs.x = x_transformed;
             transformed_obs.y = y_transformed;
-            transformed_obs.id = 0; //assign 0 because actual id is not known
+            transformed_obs.id = 0; //assign 0 because actual id is known only in dataAssociation step
 
             transformed.push_back(transformed_obs);
         }
 
+        // For each observation find the predicted landmark that is closest to it
         dataAssociation(predicted, transformed);
 
+        // Create list of associated landmarks and their calculated locations
         vector<int> associations;
         vector<double> sense_x;
         vector<double> sense_y;
@@ -164,6 +174,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
         }
         SetAssociations(particles[i], associations, sense_x, sense_y);
 
+        // Compute particle weight as the product of the gaussian probabilities for each association
         particles[i].weight = 1.0;
         for(long unsigned int j=0; j < particles[i].associations.size(); j++) {
             double x = transformed[j].x;
@@ -189,21 +200,23 @@ void ParticleFilter::resample() {
     vector<double> weights;
     std::vector<Particle> resampled_particles;
 
+    // Create weight vector
     for(int i = 0; i < num_particles; i++) {
         weights.push_back(particles[i].weight);
     }
 
+    // Create discrete distribution
     std::random_device rd;
     std::mt19937 gen(rd());
     std::discrete_distribution<> d(weights.begin(), weights.end());
 
+    // Sample particles based on their weight
     for(int i=0; i < num_particles; i++) {
         resampled_particles.push_back(particles[d(gen)]);
     }
 
-    for(int i=0; i < num_particles; i++) {
-        particles[i] = resampled_particles[i];
-    }
+    // Replace particles list with newly sampled particles
+    particles = resampled_particles;
 }
 
 void ParticleFilter::SetAssociations(Particle& particle, 
